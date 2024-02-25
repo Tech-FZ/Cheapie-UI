@@ -55,11 +55,49 @@
             "' AND BranchPostcode = '" . $citySeparated[0] . "' AND Country = '" . $citySeparated[2] . "'");
         $branchArr = array();
         $companyRes = $pdo->query("SELECT CompanyID, CompanyName FROM Company");
-        $productRes = $pdo->query("SELECT ProductID, ProductName, ProductType, PictureURL FROM Product");
-        $prodTypeRes = $pdo->query("SELECT * FROM ProductType");
+        $productResAlt = $pdo->query("SELECT ProductID, ProductName, ProductType, PictureURL FROM Product");
+        $prodTypeRes = $pdo->query(
+            "SELECT * FROM ProductType WHERE TypeName = '" . ucfirst($_GET['searchQuery']) . "' OR TypeName LIKE '" . $_GET['searchQuery'] . "'");
         
-        foreach ($branchRes as $row) {
-            $stockInBranch = $pdo->query("SELECT Product, Branch, Price, Currency FROM Stock WHERE Branch = " . $row["BranchID"] . "");
+        foreach ($prodTypeRes as $prodType) {
+            $productRes = $pdo->query("SELECT ProductID, ProductName, ProductType, PictureURL FROM Product WHERE ProductType = " . $prodType["TypeID"]);
+            
+            foreach ($productRes as $row) {
+                $stockTotal= $pdo->query("SELECT Product, Branch, Price, Currency FROM Stock WHERE Product = " . $row["ProductID"]);
+
+                foreach ($stockTotal as $stock) {
+                    $stockFinal = array();
+                    array_push($stockFinal, $row["ProductName"], $row["PictureURL"], $prodType["TypeName"], $stock["Price"], $stock["Currency"]);
+
+                    $branchRes2 = $pdo->query(
+                        "SELECT BranchID, BranchAddress, BranchPostcode, BranchCity, Country, Company FROM Branch WHERE BranchID = '" .
+                        $stock["Branch"] . ""
+                    );
+
+                    $companyRes2 = $pdo->query(
+                        "SELECT CompanyName FROM Company WHERE CompanyID = " . $branchRes2[0]["Company"]
+                    );
+
+                    array_push(
+                        $stockFinal, $companyRes2[0]["CompanyName"], $branchRes2[0]["BranchAddress"], $branchRes2[0]["BranchPostcode"],
+                        $branchRes2[0]["BranchCity"], $branchRes2[0]["Country"]
+                    );
+
+                    echo '
+                    <div>
+                        <img src="' . $row["PictureURL"] . '"></img><br>
+                        <h4>' . $row["ProductName"] . '</h4>
+                        <p>' . $prodType["TypeName"] . '</p>
+                        <p>
+                            From: ' . $companyRes2[0]["CompanyName"] . '<br>
+                            ' . $branchRes2[0]["BranchAddress"] . '<br>
+                            ' . $branchRes2[0]["BranchPostcode"] . ' ' . $branchRes2[0]["BranchCity"] . '<br>
+                            ' . $branchRes2[0]["Country"] . '
+                        </p>
+                        <p>' . $stock["Price"] . ' ' . $stock["Currency"] . '</p>
+                    </div>';
+                }
+            }
         }
     } else if ($_GET['page'] == 'legal') {
         
